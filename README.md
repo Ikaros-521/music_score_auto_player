@@ -10,7 +10,7 @@
 # 使用
 
 双击打开`index.html`  
-在线体验：[1](1)
+在线体验：[https://ikaros-521.github.io/music_score_auto_player/index.html](https://ikaros-521.github.io/music_score_auto_player/index.html)  
 
 # 更新说明
 
