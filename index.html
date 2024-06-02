@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>曲谱自动播放器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #controls-container {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #controls,
+        #size-control {
+            margin-right: 20px; /* 添加一些间距 */
+        }
+
+        #scroll-container {
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center; /* 图片水平居中 */
+            align-items: center; /* 图片垂直居中 */
+        }
+
+        #scroll-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #speed-control {
+            display: flex;
+            align-items: center;
+        }
+
+        #speed-control input {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        #size-control {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+
+        #size-control input {
+            margin: 5px;
+        }
+
+        #buttons-container {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>曲谱自动播放器</h1>
+    <div id="controls-container">
+        <div id="controls">
+            <input type="file" id="files" name="files" multiple>
+            <input type="button" value="上传并拼接" onclick="uploadFiles()">
+        </div>
+        <div id="size-control">
+            <label for="width">宽度百分比:</label>
+            <input type="number" id="width" min="10" max="100" value="80">
+            <label for="height">高度百分比:</label>
+            <input type="number" id="height" min="10" max="100" value="70">
+            <input type="button" value="设置尺寸" onclick="setContainerSize()">
+        </div>
+        <div id="speed-control">
+            <label for="speed">速率: <span id="speed-value">1</span></label>
+            <input type="range" id="speed" min="1" max="100" value="10">
+        </div>
+        <div id="buttons-container">
+            <button onclick="restartScroll()">重头播放</button>
+            <button onclick="togglePause()">暂停</button>
+        </div>
+    </div>
+
+    <div id="scroll-container">
+        <canvas id="scroll-content"></canvas>
+    </div>
+
+    <script>
+        let paused = false;
+        let position = 0;
+        let lastTimestamp = null;
+
+        function setContainerSize() {
+            const width = document.getElementById('width').value;
+            const height = document.getElementById('height').value;
+            const container = document.getElementById('scroll-container');
+            container.style.width = width + '%';
+            container.style.height = height + 'vh';
+        }
+
+        async function uploadFiles() {
+            const files = document.getElementById('files').files;
+            const images = [];
+
+            for (let file of files) {
+                const image = await loadImage(URL.createObjectURL(file));
+                images.push(image);
+            }
+
+            const stitchedCanvas = stitchImages(images);
+            document.getElementById('scroll-content').replaceWith(stitchedCanvas);
+            startScrolling(stitchedCanvas);
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.src = src;
+            });
+        }
+
+        function stitchImages(images) {
+            const maxWidth = Math.max(...images.map(img => img.width));
+            const totalHeight = images.reduce((sum, img) => sum + img.height, 0);
+
+            const canvas = document.createElement('canvas');
+            canvas.id = 'scroll-content';
+            canvas.width = maxWidth;
+            canvas.height = totalHeight;
+            const ctx = canvas.getContext('2d');
+
+            let yOffset = 0;
+            for (let img of images) {
+                ctx.drawImage(img, 0, yOffset, img.width, img.height);
+                yOffset += img.height;
+            }
+
+            return canvas;
+        }
+
+        function startScrolling(canvas) {
+            const speedInput = document.getElementById('speed');
+            const speedValue = document.getElementById('speed-value');
+            let speed = speedInput.value;
+
+            speedValue.textContent = speed;
+
+            speedInput.addEventListener('input', () => {
+                speed = speedInput.value;
+                speedValue.textContent = speed;
+            });
+
+            function animateScroll(timestamp) {
+                if (!lastTimestamp) {
+                    lastTimestamp = timestamp;
+                }
+                const deltaTime = timestamp - lastTimestamp;
+                lastTimestamp = timestamp;
+
+                if (!paused) {
+                    position += (parseInt(speed) / 10) * (deltaTime / 16); // Adjust scroll speed based on frame time
+                    canvas.style.top = `-${position}px`;
+                    if (position >= canvas.height) {
+                        position = 0;
+                    }
+                }
+
+                requestAnimationFrame(animateScroll);
+            }
+
+            requestAnimationFrame(animateScroll);
+        }
+
+        function restartScroll() {
+            position = 0;
+        }
+
+        function togglePause() {
+            paused = !paused;
+        }
+
+        // 初始化容器尺寸
+        setContainerSize();
+    </script>
+</body>
+</html>
